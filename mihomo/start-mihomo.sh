@@ -10,7 +10,7 @@ API_PORT=9090
 opt() {
     # opt <jq-path> <default>
     local v
-    v=$(jq -r "${1} // empty" "${OPTIONS_FILE}" 2>/dev/null || true)
+    v=$(jq -r "${1} | if . == null then empty else tostring end" "${OPTIONS_FILE}" 2>/dev/null || true)
     if [ -z "${v}" ]; then echo "${2}"; else echo "${v}"; fi
 }
 
