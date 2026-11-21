@@ -50,7 +50,8 @@ first time the add-on starts. Edit it (or replace it with your own config) and r
 
 The add-on always serves the API and the bundled Yacd on `0.0.0.0:9090` (mihomo
 `external-controller`/`external-ui`, sing-box `experimental.clash_api`), so the Web UI button
-always works. Your file is not modified. The merged config is written to
+always works. If your sing-box config has no `log.level`, the add-on sets `info` (sing-box
+would otherwise log at trace level). Your file is not modified. The merged config is written to
 `/data/<engine>/runtime-config.*` inside the add-on.
 
 ### Migrating from sing-box as a SOCKS5 proxy

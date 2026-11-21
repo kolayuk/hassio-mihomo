@@ -127,7 +127,8 @@ run_mihomo() {
 # ---------------------------------------------------------------------------
 run_singbox() {
     jq --arg ctl "0.0.0.0:${API_PORT}" --arg secret "${API_SECRET}" '
-        .experimental.clash_api.external_controller = $ctl
+        (if .log.level == null then .log.level = "info" else . end)
+      | .experimental.clash_api.external_controller = $ctl
       | .experimental.clash_api.external_ui = "ui"
       | (if $secret != "" then .experimental.clash_api.secret = $secret else . end)
     ' "${CONFIG_FILE}" > "${RUNTIME_CONFIG}"
