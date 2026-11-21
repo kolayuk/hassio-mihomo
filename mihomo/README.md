@@ -6,100 +6,113 @@
 ![Supports armhf Architecture][armhf-shield]
 ![Supports i386 Architecture][i386-shield]
 
-Mihomo (Clash.Meta) - A rule-based transparent proxy with advanced routing capabilities.
-
-## About
-
-This add-on brings the power of Mihomo (formerly known as Clash.Meta) to your Home Assistant installation. Mihomo is a rule-based network proxy that supports transparent proxy, multiple protocols, and advanced routing features.
+Mihomo (Clash.Meta) with TUN mode: a rule-based proxy that acts as a VPN for the
+whole Home Assistant host, with the [metacubexd][metacubexd] web dashboard built in.
 
 ## Features
 
-- 🚀 **Transparent Proxy (TProxy)** - Route all network traffic transparently
-- 🌐 **Multi-protocol Support** - Shadowsocks, VMess, Trojan, VLESS, and more
-- 📱 **Full Platform Support** - Works on all Home Assistant supported architectures
-- 🔄 **Auto-updating** - Daily builds ensure you have the latest Mihomo version
-- 🛡️ **Rule-based Routing** - Route traffic based on domains, IPs, and more
-- 🎯 **DNS Management** - Built-in DNS server with fake-IP support
-- 📊 **RESTful API** - Monitor and control via web dashboard
-
-## Installation
-
-1. Click the Home Assistant My button below to add this add-on repository to your Home Assistant instance
-2. Navigate to **Settings** → **Add-ons** → **Add-on Store**
-3. Find "Mihomo Proxy" in the list and click on it
-4. Click **Install**
+- **Whole-host VPN (TUN)**: the add-on runs with `NET_ADMIN`/`NET_RAW` and `/dev/net/tun`,
+  so mihomo creates a TUN interface with `auto-route` + `auto-redirect`, and all host traffic goes through it
+- **Local network excluded**: LAN ranges skip the tunnel. You can change the list in the add-on options
+  or in your mihomo config
+- **Web UI button**: "Open Web UI" in Home Assistant opens metacubexd, which mihomo itself serves on port 9090
+- **Auto-updating**: GitHub Actions rebuilds mihomo (from the `Meta` branch) and pins the latest metacubexd
+  release every day, then bumps the add-on version so Home Assistant offers the update
 
 ## Configuration
 
-This add-on works out of the box with sensible defaults. For advanced users, you can provide a custom configuration:
+The mihomo config file is `/homeassistant/mihomo.yaml`, the `mihomo.yaml` file next to
+`configuration.yaml`. If the file does not exist, it is created from the bundled template the
+first time the add-on starts. Edit it (or replace it with your own config) and restart the add-on.
 
-1. Create a file named `mihomo.yaml` in your Home Assistant config directory
-2. Add your proxy configuration (see example below)
-3. Restart the add-on
+### Add-on options
 
-### Example Configuration
+| Option | Default | Description |
+| ------ | ------- | ----------- |
+| `config_file` | `/homeassistant/mihomo.yaml` | Path to the mihomo config |
+| `tun` | `true` | Force TUN mode on (`tun.enable`, `auto-route`, `auto-detect-interface`, default `dns-hijack`). Set to `false` to use the `tun` section of your config unchanged |
+| `tun_stack` | `mixed` | TUN stack: `mixed`, `system` or `gvisor` |
+| `tun_route_exclude_address` | private/LAN ranges | CIDRs that bypass the tunnel (written to `tun.route-exclude-address`). **Leave the list empty to use `route-exclude-address` from your mihomo config instead** |
+| `api_secret` | empty | If set, it replaces `secret` for the API/Web UI |
+
+The add-on always sets `external-controller: 0.0.0.0:9090` and `external-ui` to the bundled
+metacubexd, so the Web UI button always works. Your file is not modified. The merged
+config is written to `/data/mihomo/runtime-config.yaml` inside the add-on.
+
+### Minimal config example
 
 ```yaml
-# /config/mihomo.yaml
 mixed-port: 7893
 allow-lan: true
 mode: rule
 log-level: info
 
+dns:
+  enable: true            # required for TUN dns-hijack
+  listen: 0.0.0.0:1053
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  nameserver:
+    - https://1.1.1.1/dns-query
+
+tun:
+  enable: true
+  stack: mixed
+  auto-route: true
+  auto-redirect: true
+  auto-detect-interface: true
+  route-exclude-address:   # used when add-on option tun_route_exclude_address is empty
+    - 192.168.0.0/16
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+
 proxies:
-  - name: "my-proxy"
-    type: ss
-    server: your-server.com
-    port: 8388
-    cipher: aes-256-gcm
-    password: "your-password"
+  - name: my-vless
+    type: vless
+    server: example.com
+    port: 443
+    uuid: 00000000-0000-0000-0000-000000000000
+    network: tcp
+    tls: true
+    udp: true
+    flow: xtls-rprx-vision
+    servername: www.microsoft.com
+    reality-opts:
+      public-key: xxxxxxxx
+      short-id: xxxx
+    client-fingerprint: chrome
 
 proxy-groups:
   - name: Proxy
     type: select
-    proxies:
-      - my-proxy
-      - DIRECT
+    proxies: [my-vless, DIRECT]
 
 rules:
-  - DOMAIN-SUFFIX,google.com,Proxy
-  - MATCH,DIRECT
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - MATCH,Proxy
 ```
 
-## Ports
+## Ports (host network)
 
-| Port | Protocol | Description                |
-| ---- | -------- | -------------------------- |
-| 7890 | TCP      | HTTP Proxy                 |
-| 7891 | TCP      | SOCKS5 Proxy               |
-| 7893 | TCP      | Mixed HTTP/SOCKS Proxy     |
-| 9898 | TCP      | Transparent Proxy (TProxy) |
-| 9090 | TCP      | RESTful API & Dashboard    |
-| 53   | UDP      | DNS Server                 |
+| Port | Description |
+| ---- | ----------- |
+| 7890 / 7891 / 7893 | HTTP / SOCKS5 / mixed proxy (if enabled in config) |
+| 9898 | TProxy (if enabled in config) |
+| 9090 | REST API and Web UI (`/ui/`) |
+| 1053 | DNS server in the default template |
 
-## Web Dashboard
+## Web UI
 
-Access the Mihomo dashboard at: `http://homeassistant.local:9090`
-
-Compatible dashboards:
-
-- [metacubexd](https://github.com/MetaCubeX/metacubexd) - Official dashboard
-- [Yacd](https://github.com/haishanh/yacd) - Yet Another Clash Dashboard
-
-## Documentation
-
-For complete documentation including advanced configuration, troubleshooting, and detailed setup instructions, please see the [main repository README](https://github.com/kapuic/hassio-mihomo).
-
-## Support
-
-- [GitHub Issues](https://github.com/kapuic/hassio-mihomo/issues)
-- [Home Assistant Community Forum](https://community.home-assistant.io/)
-- [Mihomo Documentation](https://wiki.metacubex.one/)
+Use **Open Web UI** on the add-on page, or go to `http://<home-assistant-ip>:9090/ui/`.
+metacubexd connects to the same address automatically. If you set a secret, enter it once in the UI.
 
 ## Security
 
-This add-on requires host network access to function as a transparent proxy. Security rating: 4/8
+The add-on needs host networking, `NET_ADMIN`/`NET_RAW` and `/dev/net/tun` to act as a
+host-wide VPN. Set `api_secret` if your LAN is not trusted.
 
+[metacubexd]: https://github.com/MetaCubeX/metacubexd
 [aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg
 [amd64-shield]: https://img.shields.io/badge/amd64-yes-green.svg
 [armhf-shield]: https://img.shields.io/badge/armhf-yes-green.svg

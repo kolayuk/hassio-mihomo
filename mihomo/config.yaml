@@ -1,36 +1,59 @@
 # https://developers.home-assistant.io/docs/add-ons/configuration#add-on-config
 name: Mihomo Proxy
-version: "1.2.6"
+version: "1.3.0"
 slug: shilvy_mihomo
-description: Mihomo (Clash.Meta) - A rule-based transparent proxy with advanced routing capabilities
-url: "https://github.com/ShIlVy/hassio-mihomo/tree/main/mihomo"
+description: Mihomo (Clash.Meta) - rule-based proxy with TUN mode for the whole host
+url: "https://github.com/kolayuk/hassio-mihomo/tree/main/mihomo"
 arch:
   - aarch64
   - amd64
   - armv7
   - armhf
   - i386
-startup: application
+startup: services
 boot: auto
+init: false
 host_network: true
-rating: 4
+# TUN: create the tun interface, manage routes / ip rules / nftables
+privileged:
+  - NET_ADMIN
+  - NET_RAW
+devices:
+  - /dev/net/tun
+webui: "http://[HOST]:[PORT:9090]/ui/"
 ports:
   7890/tcp: 7890
   7891/tcp: 7891
   7893/tcp: 7893
   9898/tcp: 9898
   9090/tcp: 9090
-  53/udp: 53
 ports_description:
   7890/tcp: "HTTP Proxy"
   7891/tcp: "SOCKS5 Proxy"
   7893/tcp: "Mixed Proxy"
   9898/tcp: "TProxy"
-  9090/tcp: "API/Dashboard"
-  53/udp: "DNS Server"
-options:
-  config_file: "/config/mihomo.yaml"
+  9090/tcp: "API / Web UI (metacubexd)"
 map:
-  - config:rw  
+  - type: homeassistant_config
+    read_only: false
+options:
+  config_file: "/homeassistant/mihomo.yaml"
+  tun: true
+  tun_stack: mixed
+  tun_route_exclude_address:
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+    - 100.64.0.0/10
+    - 169.254.0.0/16
+    - 224.0.0.0/4
+    - fc00::/7
+    - fe80::/10
+  api_secret: ""
 schema:
-  config_file: "str?"
+  config_file: str
+  tun: bool
+  tun_stack: list(mixed|system|gvisor)
+  tun_route_exclude_address:
+    - str?
+  api_secret: password?

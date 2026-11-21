@@ -34,7 +34,8 @@ The add-on provides a complete proxy solution with automatic daily updates, ensu
 - 🚀 **Transparent Proxy (TProxy)** - Seamless traffic routing on port 9898
 - 🔄 **Auto-updating** - Daily builds with the latest Mihomo binary via GitHub Actions
 - ⚙️ **Flexible Configuration** - Support for custom configurations
-- 🔧 **RESTful API** - Control via web interface on port 9090
+- 🛡️ **Whole-host VPN (TUN)** - TUN mode on by default, local network excluded (configurable)
+- 🖥️ **metacubexd Web UI** - "Open Web UI" button in Home Assistant (port 9090, `/ui/`)
 - 🌐 **Multi-protocol Support** - SS, VMess, Trojan, VLESS, and more
 - 🏠 **Home Assistant Integration** - Native add-on with full access to Home Assistant network
 - 🦾 **ARM64 Support** - Optimized for Raspberry Pi 4 and similar devices
@@ -43,14 +44,14 @@ The add-on provides a complete proxy solution with automatic daily updates, ensu
 
 ### One-Click Install
 
-[![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fkapuic%2Fhassio-mihomo)
+[![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fkolayuk%2Fhassio-mihomo)
 
 ### Manual Installation
 
 1. Navigate to your Home Assistant Supervisor panel
 2. Click on "Add-on Store"
 3. Click the three dots menu and select "Repositories"
-4. Add this repository URL: `https://github.com/kapuic/hassio-mihomo`
+4. Add this repository URL: `https://github.com/kolayuk/hassio-mihomo`
 5. Find "Mihomo Proxy" in the add-on store and click Install
 
 ## Configuration
@@ -59,7 +60,7 @@ The add-on provides a complete proxy solution with automatic daily updates, ensu
 
 The add-on works out of the box with a default configuration. For custom setups:
 
-1. Create `/config/mihomo.yaml` in your Home Assistant config directory
+1. Edit `/homeassistant/mihomo.yaml` (the `mihomo.yaml` next to `configuration.yaml`; created from the template on first start)
 2. Add your proxy configuration (see [Configuration Template](#configuration-template))
 3. Restart the add-on
 
@@ -108,10 +109,10 @@ For a complete configuration reference, see the [mihomo-default.yaml](mihomo/mih
 Access the Mihomo dashboard by navigating to:
 
 ```txt
-http://homeassistant.local:9090
+http://homeassistant.local:9090/ui/
 ```
 
-Or use your Home Assistant IP address: `http://YOUR_IP:9090`
+Or click **Open Web UI** on the add-on page. The bundled [metacubexd](https://github.com/MetaCubeX/metacubexd) is served by mihomo and connects automatically.
 
 You can use web dashboards like:
 
@@ -123,15 +124,14 @@ You can use web dashboards like:
 
 ### TUN Mode
 
-Enable TUN mode for system-wide proxy (requires additional configuration):
+TUN mode is enabled by default, so the add-on works as a VPN for the whole host. Add-on options:
 
-```yaml
-tun:
-  enable: true
-  stack: system
-  auto-route: true
-  auto-redirect: true
-```
+- `tun` (default `true`) forces TUN on. Set it to `false` to use your config's `tun` section unchanged
+- `tun_stack` can be `mixed` (default), `system` or `gvisor`
+- `tun_route_exclude_address` lists the CIDRs that bypass the tunnel (LAN ranges by default).
+  Leave it **empty** to use `tun.route-exclude-address` from your mihomo config
+
+See [mihomo/README.md](mihomo/README.md) for details.
 
 ### Sniffer
 
@@ -167,7 +167,7 @@ ha addons logs mihomo
 - 📦 [Mihomo (Clash.Meta) Repository](https://github.com/MetaCubeX/mihomo/tree/Meta)
 - 📚 [Mihomo Documentation](https://wiki.metacubex.one/)
 - 🏠 [Home Assistant](https://www.home-assistant.io/)
-- 🐛 [Report Issues](https://github.com/kapuic/hassio-mihomo/issues)
+- 🐛 [Report Issues](https://github.com/kolayuk/hassio-mihomo/issues)
 
 ## Changelog & Releases
 
@@ -238,23 +238,23 @@ SOFTWARE.
 
 [aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg
 [addon-badge]: https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg
-[addon]: https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fkapuic%2Fhassio-mihomo
+[addon]: https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fkolayuk%2Fhassio-mihomo
 [amd64-shield]: https://img.shields.io/badge/amd64-yes-green.svg
 [armhf-shield]: https://img.shields.io/badge/armhf-yes-green.svg
 [armv7-shield]: https://img.shields.io/badge/armv7-yes-green.svg
-[build-shield]: https://github.com/kapuic/hassio-mihomo/actions/workflows/ci.yml/badge.svg
-[build]: https://github.com/kapuic/hassio-mihomo/actions/workflows/ci.yml
-[contributing]: https://github.com/kapuic/hassio-mihomo/blob/main/.github/CONTRIBUTING.md
-[contributors]: https://github.com/kapuic/hassio-mihomo/graphs/contributors
+[build-shield]: https://github.com/kolayuk/hassio-mihomo/actions/workflows/ci.yml/badge.svg
+[build]: https://github.com/kolayuk/hassio-mihomo/actions/workflows/ci.yml
+[contributing]: https://github.com/kolayuk/hassio-mihomo/blob/main/.github/CONTRIBUTING.md
+[contributors]: https://github.com/kolayuk/hassio-mihomo/graphs/contributors
 [discord-ha]: https://discord.gg/c5DvZ4e
 [forum]: https://community.home-assistant.io/
 [i386-shield]: https://img.shields.io/badge/i386-yes-green.svg
-[issue]: https://github.com/kapuic/hassio-mihomo/issues
+[issue]: https://github.com/kolayuk/hassio-mihomo/issues
 [kapuic]: https://github.com/kapuic
-[license-shield]: https://img.shields.io/github/license/kapuic/hassio-mihomo.svg
+[license-shield]: https://img.shields.io/github/license/kolayuk/hassio-mihomo.svg
 [mihomo]: https://github.com/MetaCubeX/mihomo/tree/Meta
 [reddit]: https://reddit.com/r/homeassistant
-[releases-shield]: https://img.shields.io/github/v/release/kapuic/hassio-mihomo.svg
-[releases]: https://github.com/kapuic/hassio-mihomo/releases
+[releases-shield]: https://img.shields.io/github/v/release/kolayuk/hassio-mihomo.svg
+[releases]: https://github.com/kolayuk/hassio-mihomo/releases
 [semver]: http://semver.org/spec/v2.0.0.html
-[wiki]: https://github.com/kapuic/hassio-mihomo/wiki
+[wiki]: https://github.com/kolayuk/hassio-mihomo/wiki

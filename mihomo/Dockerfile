@@ -1,23 +1,22 @@
-FROM alpine:latest
+FROM alpine:3.22
 
-# Install required packages
-RUN apk add --no-cache ca-certificates bash libc6-compat gcompat unzip wget
+# Required packages (yq is used to apply add-on overrides to the mihomo config)
+RUN apk add --no-cache ca-certificates bash jq curl tar libc6-compat gcompat \
+    && (apk add --no-cache yq-go || apk add --no-cache yq) \
+    && yq --version
 
-# Скачиваем и распаковываем панель управления
-RUN mkdir -p /app/ui && \
-    wget https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip -O ui.zip && \
-    unzip ui.zip && \
-    mv metacubexd-gh-pages/* /app/ui/ && \
-    rm -rf ui.zip metacubexd-gh-pages
+# Web UI: metacubexd, version pinned in metacubexd.version (bumped by GitHub Actions)
+COPY metacubexd.version /app/metacubexd.version
+RUN mkdir -p /app/ui \
+    && curl -fsSL "https://github.com/MetaCubeX/metacubexd/releases/download/$(cat /app/metacubexd.version | tr -d '[:space:]')/compressed-dist.tgz" \
+       | tar xz -C /app/ui
 
-# Copy architecture-specific binary
+# Architecture-specific mihomo binary (built by GitHub Actions)
 ARG BUILD_ARCH
 COPY mihomo-${BUILD_ARCH} /app/mihomo
 COPY start-mihomo.sh /app/start-mihomo.sh
 COPY mihomo-default.yaml /app/mihomo-default.yaml
 
-# Make scripts executable
 RUN chmod +x /app/mihomo /app/start-mihomo.sh
 
-# Run the startup script
 CMD ["/app/start-mihomo.sh"]
