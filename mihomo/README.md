@@ -30,7 +30,7 @@ first time the add-on starts. Edit it (or replace it with your own config) and r
 | Option | Default | Description |
 | ------ | ------- | ----------- |
 | `config_file` | `/homeassistant/mihomo.yaml` | Path to the mihomo config |
-| `tun` | `true` | Force TUN mode on (`tun.enable`, `auto-route`, `auto-detect-interface`, default `dns-hijack`). Set to `false` to use the `tun` section of your config unchanged |
+| `tun` | `true` | Force TUN mode on (`tun.enable`, `auto-route`, `auto-detect-interface`, default `dns-hijack`). Set to `false` to use the `tun` section of your config unchanged (the generated template has `tun.enable: false`, so this turns TUN off unless you enable it there) |
 | `tun_stack` | `mixed` | TUN stack: `mixed`, `system` or `gvisor` |
 | `tun_route_exclude_address` | private/LAN ranges | CIDRs that bypass the tunnel (written to `tun.route-exclude-address`). **Leave the list empty to use `route-exclude-address` from your mihomo config instead** |
 | `api_secret` | empty | If set, it replaces `secret` for the API/Web UI |

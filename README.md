@@ -127,6 +127,7 @@ You can use web dashboards like:
 TUN mode is enabled by default, so the add-on works as a VPN for the whole host. Add-on options:
 
 - `tun` (default `true`) forces TUN on. Set it to `false` to use your config's `tun` section unchanged
+  (the generated template has `tun.enable: false`, so this turns TUN off unless you enable it there)
 - `tun_stack` can be `mixed` (default), `system` or `gvisor`
 - `tun_route_exclude_address` lists the CIDRs that bypass the tunnel (LAN ranges by default).
   Leave it **empty** to use `tun.route-exclude-address` from your mihomo config

@@ -230,8 +230,10 @@ profile:
 # enable/stack/auto-route/auto-detect-interface and, if the add-on option
 # "tun_route_exclude_address" is non-empty, replaces route-exclude-address.
 # Set that option to an empty list to manage the exclusions here instead.
+# With the add-on option "tun" set to false this section is used unchanged,
+# so TUN stays off unless you set enable: true here yourself.
 tun:
-  enable: true
+  enable: false # turned on by the add-on option "tun" (default)
   stack: mixed # system / gvisor / mixed
   dns-hijack:
     - any:53
