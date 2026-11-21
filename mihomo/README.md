@@ -93,6 +93,14 @@ rules:
   - MATCH,Proxy
 ```
 
+### DNS in TUN mode
+
+With TUN on, **all DNS queries of the host are hijacked by mihomo** (`dns-hijack: any:53`), so
+Home Assistant resolves names only through the `dns.nameserver` list of your config. If none of
+those servers are reachable (e.g. DoH to `1.1.1.1` blocked or throttled), the whole host loses DNS.
+Make sure your config has at least one reachable resolver, and ideally send DNS for blocked domains
+through the proxy (`nameserver-policy` / `proxy-server-nameserver`, see the mihomo docs).
+
 ## Ports (host network)
 
 | Port | Description |
