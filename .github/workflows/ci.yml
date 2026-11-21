@@ -1,4 +1,4 @@
-name: Update Mihomo & metacubexd
+name: Update mihomo, sing-box & Yacd
 
 on:
   push:
@@ -27,6 +27,8 @@ jobs:
       mihomo_changed: ${{ steps.check.outputs.mihomo_changed }}
       ui_version: ${{ steps.check.outputs.ui_version }}
       ui_changed: ${{ steps.check.outputs.ui_changed }}
+      sb_version: ${{ steps.check.outputs.sb_version }}
+      sb_changed: ${{ steps.check.outputs.sb_changed }}
     steps:
       - uses: actions/checkout@v4
 
@@ -38,24 +40,33 @@ jobs:
         run: |
           MIHOMO_SHA=$(git ls-remote https://github.com/MetaCubeX/mihomo.git refs/heads/Meta | cut -f1)
           CURRENT_SHA=$(cat mihomo/mihomo.version 2>/dev/null | tr -d '[:space:]' || true)
-          UI_VERSION=$(gh api repos/MetaCubeX/metacubexd/releases/latest --jq .tag_name)
-          CURRENT_UI=$(cat mihomo/metacubexd.version 2>/dev/null | tr -d '[:space:]' || true)
+          # Yacd-meta has no release assets: pin the commit of its built gh-pages branch
+          UI_VERSION=$(git ls-remote https://github.com/MetaCubeX/Yacd-meta.git refs/heads/gh-pages | cut -f1)
+          CURRENT_UI=$(cat mihomo/yacd.version 2>/dev/null | tr -d '[:space:]' || true)
+          # Latest stable (non-prerelease) sing-box release
+          SB_VERSION=$(gh api repos/SagerNet/sing-box/releases/latest --jq .tag_name)
+          CURRENT_SB=$(cat mihomo/sing-box.version 2>/dev/null | tr -d '[:space:]' || true)
 
           echo "mihomo: ${CURRENT_SHA:-none} -> ${MIHOMO_SHA}"
-          echo "metacubexd: ${CURRENT_UI:-none} -> ${UI_VERSION}"
+          echo "yacd-meta: ${CURRENT_UI:-none} -> ${UI_VERSION}"
+          echo "sing-box: ${CURRENT_SB:-none} -> ${SB_VERSION}"
 
-          [ -n "$MIHOMO_SHA" ] && [ -n "$UI_VERSION" ] || { echo "Failed to resolve upstream versions"; exit 1; }
+          [ -n "$MIHOMO_SHA" ] && [ -n "$UI_VERSION" ] && [ -n "$SB_VERSION" ] || { echo "Failed to resolve upstream versions"; exit 1; }
 
           MIHOMO_CHANGED=false
           if [ "$MIHOMO_SHA" != "$CURRENT_SHA" ] || [ "$FORCE" = "true" ]; then MIHOMO_CHANGED=true; fi
           UI_CHANGED=false
           if [ "$UI_VERSION" != "$CURRENT_UI" ]; then UI_CHANGED=true; fi
+          SB_CHANGED=false
+          if [ "$SB_VERSION" != "$CURRENT_SB" ]; then SB_CHANGED=true; fi
 
           {
             echo "mihomo_sha=$MIHOMO_SHA"
             echo "mihomo_changed=$MIHOMO_CHANGED"
             echo "ui_version=$UI_VERSION"
             echo "ui_changed=$UI_CHANGED"
+            echo "sb_version=$SB_VERSION"
+            echo "sb_changed=$SB_CHANGED"
           } >> "$GITHUB_OUTPUT"
 
   build:
@@ -121,7 +132,7 @@ jobs:
       always() &&
       needs.check.result == 'success' &&
       (needs.build.result == 'success' || needs.build.result == 'skipped') &&
-      (needs.check.outputs.mihomo_changed == 'true' || needs.check.outputs.ui_changed == 'true')
+      (needs.check.outputs.mihomo_changed == 'true' || needs.check.outputs.ui_changed == 'true' || needs.check.outputs.sb_changed == 'true')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout add-on repo
@@ -141,6 +152,8 @@ jobs:
           UI_CHANGED: ${{ needs.check.outputs.ui_changed }}
           MIHOMO_SHA: ${{ needs.check.outputs.mihomo_sha }}
           UI_VERSION: ${{ needs.check.outputs.ui_version }}
+          SB_CHANGED: ${{ needs.check.outputs.sb_changed }}
+          SB_VERSION: ${{ needs.check.outputs.sb_version }}
         run: |
           MSG=()
           if [ "$MIHOMO_CHANGED" = "true" ]; then
@@ -150,8 +163,12 @@ jobs:
             MSG+=("mihomo ${MIHOMO_SHA:0:7}")
           fi
           if [ "$UI_CHANGED" = "true" ]; then
-            echo "$UI_VERSION" > mihomo/metacubexd.version
-            MSG+=("metacubexd ${UI_VERSION}")
+            echo "$UI_VERSION" > mihomo/yacd.version
+            MSG+=("yacd-meta ${UI_VERSION:0:7}")
+          fi
+          if [ "$SB_CHANGED" = "true" ]; then
+            echo "$SB_VERSION" > mihomo/sing-box.version
+            MSG+=("sing-box ${SB_VERSION}")
           fi
 
           # Bump patch version so Home Assistant offers the update and rebuilds the image

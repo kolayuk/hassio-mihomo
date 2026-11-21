@@ -1,0 +1,34 @@
+{
+  "log": { "level": "info", "timestamp": true },
+  "dns": {
+    "servers": [
+      { "type": "https", "tag": "dns-remote", "server": "1.1.1.1" },
+      { "type": "https", "tag": "dns-remote-google", "server": "8.8.8.8" }
+    ],
+    "final": "dns-remote",
+    "strategy": "prefer_ipv4"
+  },
+  "inbounds": [
+    { "type": "mixed", "tag": "mixed-in", "listen": "0.0.0.0", "listen_port": 7893 }
+  ],
+  "outbounds": [
+    { "type": "direct", "tag": "direct" }
+  ],
+  "route": {
+    "rules": [
+      { "action": "sniff" },
+      { "protocol": "dns", "action": "hijack-dns" },
+      { "ip_is_private": true, "outbound": "direct" }
+    ],
+    "final": "direct",
+    "auto_detect_interface": true,
+    "default_domain_resolver": "dns-remote"
+  },
+  "experimental": {
+    "cache_file": { "enabled": true },
+    "clash_api": {
+      "external_controller": "0.0.0.0:9090",
+      "external_ui": "ui"
+    }
+  }
+}

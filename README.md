@@ -35,7 +35,8 @@ The add-on provides a complete proxy solution with automatic daily updates, ensu
 - 🔄 **Auto-updating** - Daily builds with the latest Mihomo binary via GitHub Actions
 - ⚙️ **Flexible Configuration** - Support for custom configurations
 - 🛡️ **Whole-host VPN (TUN)** - TUN mode on by default, local network excluded (configurable)
-- 🖥️ **metacubexd Web UI** - "Open Web UI" button in Home Assistant (port 9090, `/ui/`)
+- 🔀 **Two engines** - mihomo (default) or sing-box, selectable in the add-on options
+- 🖥️ **Yacd Web UI** - "Open Web UI" button in Home Assistant (port 9090, `/ui/`), works with both engines
 - 🌐 **Multi-protocol Support** - SS, VMess, Trojan, VLESS, and more
 - 🏠 **Home Assistant Integration** - Native add-on with full access to Home Assistant network
 - 🦾 **ARM64 Support** - Optimized for Raspberry Pi 4 and similar devices
@@ -112,13 +113,7 @@ Access the Mihomo dashboard by navigating to:
 http://homeassistant.local:9090/ui/
 ```
 
-Or click **Open Web UI** on the add-on page. The bundled [metacubexd](https://github.com/MetaCubeX/metacubexd) is served by mihomo and connects automatically.
-
-You can use web dashboards like:
-
-- [metacubexd](https://github.com/MetaCubeX/metacubexd) - Official dashboard
-- [Yacd](https://github.com/haishanh/yacd) - Yet Another Clash Dashboard
-- [Clash Dashboard](https://github.com/Dreamacro/clash-dashboard)
+Or click **Open Web UI** on the add-on page. The bundled [Yacd-meta](https://github.com/MetaCubeX/Yacd-meta) is served by the engine (mihomo or sing-box) and connects automatically.
 
 ## Advanced Features
 

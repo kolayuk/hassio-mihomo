@@ -1,0 +1,22 @@
+configuration:
+  engine:
+    name: Engine
+    description: Proxy engine to run, mihomo or sing-box (sing-box is not available on armhf).
+  config_file:
+    name: mihomo config file
+    description: Path to the mihomo YAML config (created from a template on first start).
+  singbox_config_file:
+    name: sing-box config file
+    description: Path to the sing-box JSON config (created from a template on first start).
+  tun:
+    name: TUN (whole-host VPN)
+    description: Force TUN mode on so all host traffic goes through the engine. Off uses your config as-is.
+  tun_stack:
+    name: TUN stack
+    description: Network stack for the TUN interface.
+  tun_route_exclude_address:
+    name: Bypass the tunnel for
+    description: CIDRs that skip the tunnel (local network). Leave empty to use the list from your engine config.
+  api_secret:
+    name: API secret
+    description: Optional secret for the API and Web UI. Empty means no login.

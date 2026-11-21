@@ -41,7 +41,7 @@ ipv6: true
 
 # RESTful API for clash
 # NOTE: the add-on always overrides these to 0.0.0.0:9090 and the bundled
-# metacubexd UI, so the "Open Web UI" button in Home Assistant works.
+# Yacd UI, so the "Open Web UI" button in Home Assistant works.
 external-controller: 0.0.0.0:9090
 external-ui: ui
 
