@@ -1,16 +1,77 @@
-name: Build Mihomo
+name: Update mihomo, sing-box & Yacd
 
 on:
   push:
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      force:
+        description: "Rebuild mihomo even if upstream has not changed"
+        type: boolean
+        default: false
   schedule:
     - cron: "0 0 * * *"
 
 permissions:
   contents: write
 
+concurrency:
+  group: update-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      mihomo_sha: ${{ steps.check.outputs.mihomo_sha }}
+      mihomo_changed: ${{ steps.check.outputs.mihomo_changed }}
+      ui_version: ${{ steps.check.outputs.ui_version }}
+      ui_changed: ${{ steps.check.outputs.ui_changed }}
+      sb_version: ${{ steps.check.outputs.sb_version }}
+      sb_changed: ${{ steps.check.outputs.sb_changed }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check upstream versions
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE: ${{ github.event.inputs.force }}
+        run: |
+          MIHOMO_SHA=$(git ls-remote https://github.com/MetaCubeX/mihomo.git refs/heads/Meta | cut -f1)
+          CURRENT_SHA=$(cat mihomo/mihomo.version 2>/dev/null | tr -d '[:space:]' || true)
+          # Yacd-meta has no release assets: pin the commit of its built gh-pages branch
+          UI_VERSION=$(git ls-remote https://github.com/MetaCubeX/Yacd-meta.git refs/heads/gh-pages | cut -f1)
+          CURRENT_UI=$(cat mihomo/yacd.version 2>/dev/null | tr -d '[:space:]' || true)
+          # Latest stable (non-prerelease) sing-box release
+          SB_VERSION=$(gh api repos/SagerNet/sing-box/releases/latest --jq .tag_name)
+          CURRENT_SB=$(cat mihomo/sing-box.version 2>/dev/null | tr -d '[:space:]' || true)
+
+          echo "mihomo: ${CURRENT_SHA:-none} -> ${MIHOMO_SHA}"
+          echo "yacd-meta: ${CURRENT_UI:-none} -> ${UI_VERSION}"
+          echo "sing-box: ${CURRENT_SB:-none} -> ${SB_VERSION}"
+
+          [ -n "$MIHOMO_SHA" ] && [ -n "$UI_VERSION" ] && [ -n "$SB_VERSION" ] || { echo "Failed to resolve upstream versions"; exit 1; }
+
+          MIHOMO_CHANGED=false
+          if [ "$MIHOMO_SHA" != "$CURRENT_SHA" ] || [ "$FORCE" = "true" ]; then MIHOMO_CHANGED=true; fi
+          UI_CHANGED=false
+          if [ "$UI_VERSION" != "$CURRENT_UI" ]; then UI_CHANGED=true; fi
+          SB_CHANGED=false
+          if [ "$SB_VERSION" != "$CURRENT_SB" ]; then SB_CHANGED=true; fi
+
+          {
+            echo "mihomo_sha=$MIHOMO_SHA"
+            echo "mihomo_changed=$MIHOMO_CHANGED"
+            echo "ui_version=$UI_VERSION"
+            echo "ui_changed=$UI_CHANGED"
+            echo "sb_version=$SB_VERSION"
+            echo "sb_changed=$SB_CHANGED"
+          } >> "$GITHUB_OUTPUT"
+
   build:
+    needs: check
+    if: needs.check.outputs.mihomo_changed == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -31,63 +92,94 @@ jobs:
             goarch: "386"
             goarm: ""
     steps:
-      - name: Checkout add-on repo
-        uses: actions/checkout@v4
+      - name: Fetch Mihomo source
+        run: |
+          git clone -b Meta --single-branch https://github.com/MetaCubeX/mihomo.git upstream-mihomo
+          cd upstream-mihomo
+          git checkout ${{ needs.check.outputs.mihomo_sha }}
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "stable"
-
-      - name: Fetch Mihomo source
-        run: |
-          rm -rf upstream-mihomo
-          git clone -b Meta --single-branch https://github.com/MetaCubeX/mihomo.git upstream-mihomo
+          go-version-file: upstream-mihomo/go.mod
+          cache-dependency-path: upstream-mihomo/go.sum
 
       - name: Build binary for ${{ matrix.arch }}
         env:
+          GOOS: linux
           GOARCH: ${{ matrix.goarch }}
           GOARM: ${{ matrix.goarm }}
+          CGO_ENABLED: "0"
         run: |
           cd upstream-mihomo
-          go mod download
           VERSION=$(git describe --tags --always)
-          GOOS=linux go build -v -trimpath \
+          go build -v -trimpath \
             -ldflags "-X 'github.com/metacubex/mihomo/constant.Version=$VERSION' \
                       -X 'github.com/metacubex/mihomo/constant.BuildTime=$(date -u)' \
                       -w -s" \
-            -tags "with_gvisor,with_quic,with_dhcp,with_wireguard,with_ech,with_utls,with_clash_api,with_extra,with_reverse" \
-            -o ../mihomo/mihomo-${{ matrix.arch }}        
+            -tags "with_gvisor" \
+            -o ../mihomo-${{ matrix.arch }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: mihomo-${{ matrix.arch }}
-          path: mihomo/mihomo-${{ matrix.arch }}
+          path: mihomo-${{ matrix.arch }}
 
   commit:
-    needs: build
+    needs: [check, build]
+    if: >-
+      always() &&
+      needs.check.result == 'success' &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped') &&
+      (needs.check.outputs.mihomo_changed == 'true' || needs.check.outputs.ui_changed == 'true' || needs.check.outputs.sb_changed == 'true')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout add-on repo
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          persist-credentials: true
 
-      - name: Download all artifacts
+      - name: Download mihomo binaries
+        if: needs.check.outputs.mihomo_changed == 'true'
         uses: actions/download-artifact@v4
         with:
           path: mihomo_temp
           pattern: mihomo-*
           merge-multiple: true
 
-      - name: Commit updated binaries
+      - name: Update files and bump add-on version
+        env:
+          MIHOMO_CHANGED: ${{ needs.check.outputs.mihomo_changed }}
+          UI_CHANGED: ${{ needs.check.outputs.ui_changed }}
+          MIHOMO_SHA: ${{ needs.check.outputs.mihomo_sha }}
+          UI_VERSION: ${{ needs.check.outputs.ui_version }}
+          SB_CHANGED: ${{ needs.check.outputs.sb_changed }}
+          SB_VERSION: ${{ needs.check.outputs.sb_version }}
         run: |
-          mkdir -p mihomo  # Создаем папку, если её нет
-          cp mihomo_temp/* mihomo/  # Копируем файлы из временной папки в нужную
+          MSG=()
+          if [ "$MIHOMO_CHANGED" = "true" ]; then
+            cp mihomo_temp/mihomo-* mihomo/
+            chmod +x mihomo/mihomo-*
+            echo "$MIHOMO_SHA" > mihomo/mihomo.version
+            MSG+=("mihomo ${MIHOMO_SHA:0:7}")
+          fi
+          if [ "$UI_CHANGED" = "true" ]; then
+            echo "$UI_VERSION" > mihomo/yacd.version
+            MSG+=("yacd-meta ${UI_VERSION:0:7}")
+          fi
+          if [ "$SB_CHANGED" = "true" ]; then
+            echo "$SB_VERSION" > mihomo/sing-box.version
+            MSG+=("sing-box ${SB_VERSION}")
+          fi
+
+          # Bump patch version so Home Assistant offers the update and rebuilds the image
+          CUR=$(grep -E '^version:' mihomo/config.yaml | sed -E 's/version: *"?([^"]+)"?/\1/')
+          IFS=. read -r MAJ MIN PAT <<< "$CUR"
+          NEW="${MAJ}.${MIN}.$((PAT + 1))"
+          sed -i -E "s/^version:.*/version: \"${NEW}\"/" mihomo/config.yaml
+          echo "Add-on version: $CUR -> $NEW"
+
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@://github.com"
-          git add mihomo/mihomo-*
-          git commit -m "chore: bump mihomo to latest" || exit 0
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mihomo/
+          git commit -m "chore: bump ${MSG[*]} (add-on ${NEW})" || exit 0
           git push

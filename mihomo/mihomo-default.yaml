@@ -14,7 +14,8 @@ mixed-port: 7893
 # redir-port: 7892
 
 # Transparent proxy server port for Linux (TProxy TCP and TProxy UDP)
-tproxy-port: 9898
+# Not needed in TUN mode (the default); enable only if you route LAN clients via TProxy
+# tproxy-port: 9898
 
 # Allow LAN access
 allow-lan: true
@@ -39,10 +40,10 @@ log-level: info
 ipv6: true
 
 # RESTful API for clash
-external-controller: 127.0.0.1:9090
-
-# Static web resource directory
-# external-ui: folder
+# NOTE: the add-on always overrides these to 0.0.0.0:9090 and the bundled
+# Yacd UI, so the "Open Web UI" button in Home Assistant works.
+external-controller: 0.0.0.0:9090
+external-ui: ui
 
 # Secret for RESTful API (required)
 # secret: ""
@@ -65,7 +66,8 @@ hosts:
 # DNS settings
 dns:
   enable: true
-  listen: 0.0.0.0:53
+  # Port 53 on the host may be taken; TUN dns-hijack works without it
+  listen: 0.0.0.0:1053
   # ipv6: true # when set to false, resolver won't translate hostnames to IPv6 addresses
 
   # DNS over HTTPS
@@ -78,7 +80,7 @@ dns:
   # These nameservers are used to resolve the DNS nameserver hostnames below.
   # Specify IP addresses only
   default-nameserver:
-    - 114.114.114.114
+    - 1.1.1.1
     - 8.8.8.8
 
   enhanced-mode: fake-ip # or redir-host
@@ -87,7 +89,8 @@ dns:
   # Hostnames in this list will not be resolved with fake IPs
   fake-ip-filter:
     - "*.lan"
-    - localhost.ptlogin2.qq.com
+    - "*.local"
+    - "+.home.arpa"
     - "+.srv.nintendo.net"
     - "+.stun.playstation.net"
     - "+.msftconnecttest.com"
@@ -102,16 +105,13 @@ dns:
 
   # Nameservers
   nameserver:
-    - https://doh.pub/dns-query
-    - https://dns.alidns.com/dns-query
-    - 114.114.114.114
-    - 8.8.8.8
+    # Encrypted DNS (plain DNS is easily tampered with by DPI)
+    - https://1.1.1.1/dns-query
+    - https://8.8.8.8/dns-query
 
   # DNS proxy server policies
   # nameserver-policy:
-  #   'www.baidu.com': '114.114.114.114'
-  #   '+.internal.crop.com': '10.0.0.1'
-  #   'geosite:cn': '114.114.114.114'
+  #   '+.internal.corp.com': '10.0.0.1'
 
 # Proxy providers
 proxy-providers:
@@ -225,16 +225,32 @@ profile:
 #   geoip: "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat"
 #   geosite: "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"
 
-# TUN configuration
+# TUN configuration (whole-host VPN)
+# NOTE: when the add-on option "tun" is on (default), the add-on forces
+# enable/stack/auto-route/auto-detect-interface and, if the add-on option
+# "tun_route_exclude_address" is non-empty, replaces route-exclude-address.
+# Set that option to an empty list to manage the exclusions here instead.
+# With the add-on option "tun" set to false this section is used unchanged,
+# so TUN stays off unless you set enable: true here yourself.
 tun:
-  enable: false
-  stack: system # or gvisor
-  # dns-hijack:
-  #   - any:53
-  #   - tcp://any:53
+  enable: false # turned on by the add-on option "tun" (default)
+  stack: mixed # system / gvisor / mixed
+  dns-hijack:
+    - any:53
+    - tcp://any:53
   auto-route: true
   auto-redirect: true
   auto-detect-interface: true
+  # Traffic to these networks bypasses the tunnel (local network)
+  route-exclude-address:
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+    - 100.64.0.0/10
+    - 169.254.0.0/16
+    - 224.0.0.0/4
+    - fc00::/7
+    - fe80::/10
 
 # Sniffer configuration
 sniffer:
