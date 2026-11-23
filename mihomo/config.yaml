@@ -1,6 +1,6 @@
 # https://developers.home-assistant.io/docs/add-ons/configuration#add-on-config
 name: Mihomo Proxy
-version: "1.4.1"
+version: "1.4.2"
 slug: shilvy_mihomo
 description: Mihomo or sing-box with TUN mode as a VPN for the whole host, Yacd web UI
 url: "https://github.com/kolayuk/hassio-mihomo/tree/main/mihomo"
